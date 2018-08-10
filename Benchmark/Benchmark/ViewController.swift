@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import PINCache
 
 class ViewController: UIViewController {
 
@@ -28,7 +29,6 @@ class ViewController: UIViewController {
         print(cache.object(forKey: "1")!.c)
         cache.set(C(2), forKey: "1")
         print(cache.object(forKey: "1")!.c)
-
         cache.set(C(3), forKey: "3")
         print(cache.object(forKey: "3")!.c)
     }
@@ -40,7 +40,6 @@ class ViewController: UIViewController {
         print(cache.object(forKey: "1")!.s)
         cache.set(S(2), forKey: "1")
         print(cache.object(forKey: "1")!.s)
-
         cache.set(S(3), forKey: "3")
         print(cache.object(forKey: "3")!.s)
     }

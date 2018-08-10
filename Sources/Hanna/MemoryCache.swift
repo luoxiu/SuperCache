@@ -7,6 +7,10 @@
 
 import Foundation
 
+// MARK: - Bogs
+
+private typealias PtrBits = Int
+
 private struct Entry {
     var prev: PtrBits = 0
     var next: PtrBits = 0
@@ -25,11 +29,86 @@ private struct Entry {
     }
 }
 
+private extension PtrBits {
+    
+    @inline(__always)
+    private func get(_ offset: Int) -> Int {
+        guard let rawPtr = UnsafeRawPointer(bitPattern: self) else { return 0 }
+        let ptr = rawPtr.advanced(by: offset).assumingMemoryBound(to: Int.self)
+        return ptr.pointee
+    }
+    
+    @inline(__always)
+    private func set(_ new: Int, _ offset: Int) {
+        guard let rawPtr = UnsafeRawPointer(bitPattern: self) else { return }
+        let ptr = rawPtr.advanced(by: offset).assumingMemoryBound(to: Int.self)
+        UnsafeMutablePointer(mutating: ptr).initialize(to: new)
+    }
+    
+    var prev: PtrBits {
+        get { return get(0) }
+        set { set(newValue, 0) }
+    }
+    
+    var next: PtrBits {
+        get { return get(8) }
+        set { set(newValue, 8) }
+    }
+    
+    var key: Int {
+        get { return get(16) }
+        set { set(newValue, 16) }
+    }
+    
+    var value: PtrBits {
+        get { return get(24) }
+        set { set(newValue, 24) }
+    }
+    
+    var cost: UInt {
+        get { return UInt(bitPattern: get(32)) }
+        set {
+            set(Int(bitPattern: newValue), 32)
+        }
+    }
+    var timestamp: UInt {
+        get { return UInt(bitPattern: get(40)) }
+        set { set(Int(bitPattern: newValue), 40) }
+    }
+}
+
+
 private class Box<T> {
     var val: T
     init(_ val: T) { self.val = val }
 }
 
+private var _intKeyCallBacks = CFDictionaryKeyCallBacks(version: 0,
+                             retain: nil,
+                             release: nil,
+                             copyDescription: nil,
+                             equal: { (p1, p2) -> DarwinBoolean in
+                                return p1 == p2 ? true : false
+                             },
+                             hash: { (p) -> CFHashCode in
+                                return CFHashCode(bitPattern: p)
+                             })
+
+private var _entryValueCallBacks = CFDictionaryValueCallBacks(version: 0,
+                               retain: { (allocator, ptr) -> UnsafeRawPointer? in
+                               guard let ptr = ptr else { return nil }
+                                   let newPtr = CFAllocatorAllocate(allocator, 48, 0)
+                                   newPtr?.copyMemory(from: ptr, byteCount: 48)
+                                   return UnsafeRawPointer(newPtr)
+                               },
+                               release: { (allocator, ptr) in
+                                   CFAllocatorDeallocate(allocator, UnsafeMutableRawPointer(mutating: ptr))
+                               },
+                               copyDescription: nil,
+                               equal: nil)
+
+
+// MARK: - Cache
 open class MemoryCache<Key: Hashable, Value> {
 
     open private(set) var name: String
@@ -45,19 +124,31 @@ open class MemoryCache<Key: Hashable, Value> {
     private var _head: PtrBits = 0
     private var _tail: PtrBits = 0
 
-    private lazy var _dict = CFDictionaryCreateMutable(nil, 0, &self._intKeyCallBacks, &self._entryValueCallBacks)
+    private var _dict = CFDictionaryCreateMutable(nil, 0, &_intKeyCallBacks, &_entryValueCallBacks)
     
     private var _lock = os_unfair_lock()
 
     private let _isVal: Bool
     
+    private let _timer = DispatchSource.makeTimerSource()
+    
     init(name: String = "", dispose: @escaping (Value) -> Void = { _ in }) {
         self._isVal = Value.self is AnyClass
         self.name = name
         self.dispose = dispose
+        
+        self._timer.setEventHandler {
+            DispatchQueue.global().async { self.trim(toAge: self.maxAge) }
+        }
+        self._timer.schedule(deadline: .now() + .seconds(5), repeating: .seconds(5), leeway: .seconds(1))
+        self._timer.activate()
+    }
+    
+    deinit {
+        _timer.cancel()
     }
 
-    // MARK: List
+    // MARK: Linked List
     private func _enqueue(_ ptrBits: inout PtrBits) {
         totalCost += ptrBits.cost
         totalCount += 1
@@ -125,7 +216,7 @@ open class MemoryCache<Key: Hashable, Value> {
         _tail = 0
         if CFDictionaryGetCount(_dict) > 0 {
             let tmp = _dict
-            _dict = CFDictionaryCreateMutable(nil, 0, &self._intKeyCallBacks, &self._entryValueCallBacks)
+            _dict = CFDictionaryCreateMutable(nil, 0, &_intKeyCallBacks, &_entryValueCallBacks)
             DispatchQueue.global(qos: .background).async {
                 let count = CFDictionaryGetCount(tmp)
                 let values = UnsafeMutablePointer<UnsafeRawPointer?>.allocate(capacity: count)
@@ -329,33 +420,6 @@ open class MemoryCache<Key: Hashable, Value> {
             trim(toCount: count)
         }
     }
-
-    // MARK: Bogs
-    private var _intKeyCallBacks =
-        CFDictionaryKeyCallBacks(version: 0,
-                                 retain: nil,
-                                 release: nil,
-                                 copyDescription: nil,
-                                 equal: { (p1, p2) -> DarwinBoolean in
-                                     return p1 == p2 ? true : false
-                                 },
-                                 hash: { (p) -> CFHashCode in
-                                     return CFHashCode(bitPattern: p)
-                                 })
-    
-    private var _entryValueCallBacks =
-        CFDictionaryValueCallBacks(version: 0,
-                                   retain: { (allocator, ptr) -> UnsafeRawPointer? in
-                                       guard let ptr = ptr else { return nil }
-                                       let newPtr = CFAllocatorAllocate(allocator, 48, 0)
-                                       newPtr?.copyMemory(from: ptr, byteCount: 48)
-                                       return UnsafeRawPointer(newPtr)
-                                   },
-                                   release: { (allocator, ptr) in
-                                       CFAllocatorDeallocate(allocator, UnsafeMutableRawPointer(mutating: ptr))
-                                   },
-                                  copyDescription: nil,
-                                  equal: nil)
 }
 
 @inline(__always)
@@ -365,54 +429,3 @@ private func clampAge(_ ti: TimeInterval) -> UInt {
     return UInt(ti)
 }
 
-// MARK: More Bogs
-private typealias PtrBits = Int
-
-/// Before using these methods, you better know what you are doing.
-private extension PtrBits {
-    
-    @inline(__always)
-    private func get(_ offset: Int) -> Int {
-        guard let rawPtr = UnsafeRawPointer(bitPattern: self) else { return 0 }
-        let ptr = rawPtr.advanced(by: offset).assumingMemoryBound(to: Int.self)
-        return ptr.pointee
-    }
-    
-    @inline(__always)
-    private func set(_ new: Int, _ offset: Int) {
-        guard let rawPtr = UnsafeRawPointer(bitPattern: self) else { return }
-        let ptr = rawPtr.advanced(by: offset).assumingMemoryBound(to: Int.self)
-        UnsafeMutablePointer(mutating: ptr).initialize(to: new)
-    }
-    
-    var prev: PtrBits {
-        get { return get(0) }
-        set { set(newValue, 0) }
-    }
-    
-    var next: PtrBits {
-        get { return get(8) }
-        set { set(newValue, 8) }
-    }
-    
-    var key: Int {
-        get { return get(16) }
-        set { set(newValue, 16) }
-    }
-    
-    var value: PtrBits {
-        get { return get(24) }
-        set { set(newValue, 24) }
-    }
-    
-    var cost: UInt {
-        get { return UInt(bitPattern: get(32)) }
-        set {
-            set(Int(bitPattern: newValue), 32)
-        }
-    }
-    var timestamp: UInt {
-        get { return UInt(bitPattern: get(40)) }
-        set { set(Int(bitPattern: newValue), 40) }
-    }
-}

@@ -11,7 +11,9 @@ import Foundation
 func measure(_ name: String, _ work: () -> Void) {
     let ts = CFAbsoluteTimeGetCurrent()
     work()
-    print(name.pad(to: 8), ": ", CFAbsoluteTimeGetCurrent() - ts)
+    let ti = CFAbsoluteTimeGetCurrent() - ts
+    print((name + "ti").pad(to: 10), ": ", ti)
+    print((name + "qps").pad(to: 10), ": ", 1 / ti * 200000)
 }
 
 extension Int {

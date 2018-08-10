@@ -7,7 +7,7 @@ DEPENDENCIES:
   - YYCache
 
 SPEC REPOS:
-  https://github.com/CocoaPods/Specs.git:
+  https://github.com/cocoapods/specs.git:
     - PINCache
     - YYCache
 
@@ -17,4 +17,4 @@ SPEC CHECKSUMS:
 
 PODFILE CHECKSUM: 25626fb99b313a808477f6b2ed263ae7eea30f00
 
-COCOAPODS: 1.5.0
+COCOAPODS: 1.5.3
