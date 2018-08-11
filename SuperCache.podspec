@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.summary      = "Extremely fast cache written in Swift."
 
   s.homepage     = "https://github.com/jianstm/SuperCache"
-  s.license      = { :type => "MIT", :file => "FILE_LICENSE" }
+  s.license      = { :type => "MIT", :file => "LICENSE" }
   s.author             = { "QuentinJin" => "jianstm@gmail.com" }
 
   s.ios.deployment_target = "10.0"
