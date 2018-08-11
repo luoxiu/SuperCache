@@ -1,41 +1,53 @@
-# Hanna[wip]
+# SuperCache
 
 Extremely fast memory cache, written in Swift.
-
-## Benchmark
-
-<p align="center">
-<img src="https://raw.githubusercontent.com/jianstm/Hanna/master/Images/Benchmark0.png" width="700">
-</p>
-<p align="center">
-<img src="https://raw.githubusercontent.com/jianstm/Hanna/master/Images/Benchmark1.png" width="700">
-</p>
-
 
 ## Features
 
 - Hashable Key
-- Reference/Value Type Value
+- Ref/Val Type Value
+- Similar Syntax to NSCache
 - Cost, Count, Age Limit
+- LRU
 - Thread Safe
-- Fast 🚀🚀🚀🚀🚀
+- Pure Swift
+- Extremely Fast 🚀🚀🚀🚀🚀
 
+## Benchmark
 
-## Roadmap
+<p align="center">
+<img src="https://raw.githubusercontent.com/jianstm/Hanna/master/Images/benchmark.png" width="700">
+</p>
 
-- [ ] Disk Cache
-- [ ] Document
-- [ ] Test
+## Usage
+
+```swift
+let cache = MemoryCache<String, HeavyObject>()
+
+cache.maxCount = 10000
+cache.maxCost = 20 * 10000
+cache.maxAge = 10 * 3600
+
+cache.set(obj, forKey: "1", cost: 20)
+
+let obj = cache.object(forKey: "1")
+
+cache.removeObject(forKey: "1")
+```
 
 ## Contributing
 
 Hanna is now a very naive framework, any help is welcome! You can open a issue on github and email me directly!
 
-## More About Hanna
+## Roadmap
 
-[用 Swift 写一个 🚀 更快 🚀 的 iOS 内存缓存](https://v2ambition.com/2018/08/write-a-faster-memory-cache-for-swift/)
+- [ ] DiskCache
+
+## More About SuperCache
+
+[用 Swift 写一个更快的 iOS 内存缓存](https://v2ambition.com/2018/08/write-a-faster-memory-cache-for-swift/)
 
 ## Acknowledgement
 
-Heavily inspired by [YYCache](https://github.com/ibireme/YYCache), but much faster.  : ]
+MemoryCache part is heavily inspired by [YYCache](https://github.com/ibireme/YYCache), but much faster.  : ]
 

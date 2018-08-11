@@ -1,6 +1,6 @@
 //
 //  MemoryCache.swift
-//  Hanna
+//  SupperCache
 //
 //  Created by Quentin Jin on 2018/8/8.
 //

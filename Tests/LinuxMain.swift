@@ -3,5 +3,5 @@ import XCTest
 import HannaTests
 
 var tests = [XCTestCaseEntry]()
-tests += HannaTests.allTests()
+tests += SuperCacheTests.allTests()
 XCTMain(tests)
